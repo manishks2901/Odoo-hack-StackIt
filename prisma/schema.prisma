@@ -22,6 +22,8 @@ model User {
   accounts       Account[]
   sessions       Session[]
   questions      Question[]
+  answers        Answer[]
+  votes          Vote[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -66,6 +68,7 @@ model Question {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags        QuestionTag[]
+  answers     Answer[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -85,4 +88,36 @@ model QuestionTag {
   tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
   
   @@unique([questionId, tagId])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  content    String   @db.Text
+  questionId String
+  userId     String
+  parentId   String?  // For nested replies
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent     Answer?  @relation("AnswerReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Answer[] @relation("AnswerReplies")
+  votes      Vote[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Vote {
+  id       String   @id @default(cuid())
+  type     VoteType
+  userId   String
+  answerId String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answer   Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, answerId])
+}
+
+enum VoteType {
+  UP
+  DOWN
 }
