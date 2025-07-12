@@ -1,45 +1,83 @@
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default async function Home() {
-  const session = await getServerSession(authOptions);
+interface Question {
+  id: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
+  tags: Array<{
+    id: string;
+    tag: {
+      id: string;
+      name: string;
+    };
+  }>;
+  _count: {
+    answers: number;
+  };
+}
 
-  if (!session) {
-    redirect("/signin");
+export default function Home() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (status === "loading") return; // Still loading session
+    
+    if (!session) {
+      router.push("/signin");
+      return;
+    }
+
+    // Fetch questions
+    fetch("/api/questions")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setQuestions(data.questions);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching questions:", error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [session, status, router]);
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-6"></div>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // Fetch questions from database
-  const questions = await prisma.question.findMany({
-    take: 10,
-    orderBy: {
-      createdAt: 'desc'
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        }
-      },
-      tags: {
-        include: {
-          tag: true
-        }
-      },
-      _count: {
-        select: {
-          answers: true
-        }
-      }
-    }
-  });
+  if (!session) {
+    return null; // Will redirect in useEffect
+  }
 
   return (
     <div className="container mx-auto p-4">

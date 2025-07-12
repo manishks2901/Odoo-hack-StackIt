@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,8 +18,10 @@ export async function GET(
       });
     }
 
+    const { id } = await params;
+
     const question = await prisma.question.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         user: {
           select: {
@@ -113,6 +115,7 @@ export async function GET(
     }
 
     // Process answers to include vote counts and user's vote status
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processAnswer = (answer: any): any => {
       const upvotes = answer.votes.filter((vote: { type: string }) => vote.type === 'UP').length;
       const downvotes = answer.votes.filter((vote: { type: string }) => vote.type === 'DOWN').length;

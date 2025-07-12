@@ -27,6 +27,11 @@ export async function GET(req: NextRequest) {
           include: {
             tag: true
           }
+        },
+        _count: {
+          select: {
+            answers: true
+          }
         }
       }
     });

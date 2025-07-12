@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import { pusherServer } from '@/lib/pusher';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,6 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const { type } = await req.json();
 
     if (!type || (type !== 'up' && type !== 'down')) {
@@ -31,7 +33,19 @@ export async function POST(
 
     // Find the answer
     const answer = await prisma.answer.findUnique({
-      where: { id: params.id }
+      where: { id: id },
+      include: {
+        user: {
+          select: {
+            email: true,
+          }
+        },
+        question: {
+          select: {
+            id: true,
+          }
+        }
+      }
     });
 
     if (!answer) {
@@ -43,7 +57,7 @@ export async function POST(
       where: {
         userId_answerId: {
           userId: user.id,
-          answerId: params.id
+          answerId: id
         }
       }
     });
@@ -56,7 +70,7 @@ export async function POST(
           where: {
             userId_answerId: {
               userId: user.id,
-              answerId: params.id
+              answerId: id
             }
           }
         });
@@ -70,13 +84,28 @@ export async function POST(
           where: {
             userId_answerId: {
               userId: user.id,
-              answerId: params.id
+              answerId: id
             }
           },
           data: {
             type: type === 'up' ? 'UP' : 'DOWN'
           }
         });
+        
+        // Send notification for vote change
+        if (answer.user.email && answer.user.email !== user.email) {
+          try {
+            await pusherServer.trigger(`user-${answer.user.email}`, 'new-vote', {
+              voteType: type,
+              contentType: 'answer',
+              questionId: answer.question.id,
+              answerId: id,
+            });
+          } catch (error) {
+            console.error('Error sending vote notification:', error);
+          }
+        }
+        
         return NextResponse.json({ 
           success: true, 
           message: 'Vote updated successfully'
@@ -88,9 +117,24 @@ export async function POST(
         data: {
           type: type === 'up' ? 'UP' : 'DOWN',
           userId: user.id,
-          answerId: params.id
+          answerId: id
         }
       });
+      
+      // Send notification for new vote
+      if (answer.user.email && answer.user.email !== user.email) {
+        try {
+          await pusherServer.trigger(`user-${answer.user.email}`, 'new-vote', {
+            voteType: type,
+            contentType: 'answer',
+            questionId: answer.question.id,
+            answerId: id,
+          });
+        } catch (error) {
+          console.error('Error sending vote notification:', error);
+        }
+      }
+      
       return NextResponse.json({ 
         success: true, 
         message: 'Vote recorded successfully'

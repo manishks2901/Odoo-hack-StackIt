@@ -23,7 +23,10 @@ const formSchema = z.object({
 export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<{
+    email: string;
+    password: string;
+  }>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",

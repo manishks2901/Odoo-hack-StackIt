@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { SignOutButton } from "@/components/SignOutButton";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const Navbar = async () => {
     const session = await getServerSession();
@@ -27,6 +28,7 @@ const Navbar = async () => {
                     <div className="flex items-center space-x-4">
                         {session ? (
                             <div className="flex items-center space-x-4">
+                                <NotificationBell />
                                 <span className="text-sm text-gray-700">
                                     Welcome, {session.user?.name || session.user?.email || "User"}
                                 </span>

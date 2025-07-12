@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
       fullUrl: true,
     },
   },
-  serverExternalPackages: ['next-auth']
+  serverExternalPackages: ['next-auth'],
 };
 
 export default nextConfig;

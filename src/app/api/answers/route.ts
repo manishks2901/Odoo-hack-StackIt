@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import { pusherServer } from '@/lib/pusher';
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,9 +62,72 @@ export async function POST(req: NextRequest) {
             name: true,
             email: true,
           }
+        },
+        question: {
+          include: {
+            user: {
+              select: {
+                email: true,
+                name: true,
+              }
+            }
+          }
+        },
+        parent: {
+          include: {
+            user: {
+              select: {
+                email: true,
+                name: true,
+              }
+            }
+          }
         }
       }
     });
+
+    // Send real-time notifications
+    try {
+      if (parentId) {
+        // This is a reply to another answer
+        const parentAnswerOwner = answer.parent?.user.email;
+        const questionOwner = answer.question.user.email;
+        
+        // Notify the parent answer owner (if not the same person)
+        if (parentAnswerOwner && parentAnswerOwner !== user.email) {
+          await pusherServer.trigger(`user-${parentAnswerOwner}`, 'new-reply', {
+            userName: user.name || user.email,
+            questionId: questionId,
+            answerId: answer.id,
+            isQuestionOwner: false,
+          });
+        }
+        
+        // Notify the question owner (if not the same person and not already notified)
+        if (questionOwner && questionOwner !== user.email && questionOwner !== parentAnswerOwner) {
+          await pusherServer.trigger(`user-${questionOwner}`, 'new-reply', {
+            userName: user.name || user.email,
+            questionId: questionId,
+            answerId: answer.id,
+            isQuestionOwner: true,
+          });
+        }
+      } else {
+        // This is a direct answer to the question
+        const questionOwner = answer.question.user.email;
+        if (questionOwner && questionOwner !== user.email) {
+          await pusherServer.trigger(`user-${questionOwner}`, 'new-answer', {
+            userName: user.name || user.email,
+            questionTitle: answer.question.title,
+            questionId: questionId,
+            answerId: answer.id,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error sending real-time notification:', error);
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({ 
       success: true, 
