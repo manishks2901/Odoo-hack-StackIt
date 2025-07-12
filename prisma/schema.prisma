@@ -21,7 +21,9 @@ model User {
   image          String?
   accounts       Account[]
   sessions       Session[]
-
+  questions      Question[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Account {
@@ -55,4 +57,32 @@ model VerificationToken {
   token      String   @unique
   expires    DateTime
   @@unique([identifier, token])
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        QuestionTag[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  questions   QuestionTag[]
+  createdAt   DateTime @default(now())
+}
+
+model QuestionTag {
+  id         String   @id @default(cuid())
+  questionId String
+  tagId      String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([questionId, tagId])
 }
