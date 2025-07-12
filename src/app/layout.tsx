@@ -6,6 +6,9 @@ import AuthProvider from "@/components/AuthProvider";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Toaster } from "sonner";
 
+// Force dynamic rendering to avoid SSR issues with auth
+export const dynamic = 'force-dynamic';
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
